@@ -85,7 +85,7 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     today = datetime.now(timezone.utc).date().isoformat()
     metrics = youtube_analytics.reports().query(
         ids=f"channel=={CHANNEL_ID}", startDate="2020-01-01", endDate=today,
-        metrics="viewerPercentage", dimensions="ageGroup,gender,country", sort="-viewerPercentage"
+        metrics="viewerPercentage", dimensions="ageGroup,gender", sort="-viewerPercentage"
     ).execute().get("rows", [])
     demo_summary = "\n".join([f"{r[0]} {r[1]} in {r[2]}: {r[3]:.1f}%" for r in metrics[:10]])
 
