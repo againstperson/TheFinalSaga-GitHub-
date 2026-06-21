@@ -23,7 +23,8 @@ jobs:
 
       - name: Install ImageMagick + ffmpeg
         run: sudo apt-get update && sudo apt-get install -y imagemagick ffmpeg
-
+      - name: Allow ImageMagick text rendering
+        run: sudo sed -i '/<policy domain="path" rights="none" pattern="@\*"/d' /etc/ImageMagick-6/policy.xml
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
