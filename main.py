@@ -191,9 +191,8 @@ def main():
     youtube = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
     youtube_analytics = googleapiclient.discovery.build("youtubeAnalytics", "v2", credentials=creds)
     drive = googleapiclient.discovery.build("drive", "v3", credentials=creds)
-    api_key_val = os.environ.get("GOOGLE_AI_STUDIO_API_KEY") or os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key_val)
-
+    client = genai.Client(api_key=GOOGLE_AI_STUDIO_API_KEY)
+    
     if ACTION == "generate":
         flatlined, title = agent1_check_velocity(youtube)
         if not flatlined:
