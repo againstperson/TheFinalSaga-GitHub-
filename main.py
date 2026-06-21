@@ -95,7 +95,7 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     ).execute().get("rows", [])
 
     age_gender_summary = "\n".join([f"{r[0]} {r[1]}: {r[2]:.1f}%" for r in age_gender[:5]])
-    country_summary = "\n".join([f"{r[0]}: {r[1]:.1f}%" for r in country[:5]])
+    country_summary = "\n".join([f"{r[0]}: {r[1]} views" for r in country[:5]])
     demo_summary = f"Age/Gender:\n{age_gender_summary}\n\nTop Countries:\n{country_summary}"
 
     # Prompt updated to specifically generate 145 seconds of content
