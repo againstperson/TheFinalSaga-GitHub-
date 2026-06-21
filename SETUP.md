@@ -1,0 +1,15 @@
+# Configuration Reference
+
+## Required GitHub Repository Secrets
+- `YOUTUBE_CLIENT_ID`
+- `YOUTUBE_CLIENT_SECRET`
+- `YOUTUBE_REFRESH_TOKEN`
+- `GOOGLE_AI_STUDIO_API_KEY`
+- `DRIVE_CLIPS_FOLDER_ID`
+- `DRIVE_MUSIC_FOLDER_ID`
+- `DRIVE_FONT_FILE_ID`
+- `DRIVE_EXPORT_FOLDER_ID`
+- `DISCORD_WEBHOOK_URL`
+
+## Required GitHub Repository Variables
+- `YOUTUBE_CHANNEL_ID`
