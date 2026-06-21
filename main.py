@@ -83,19 +83,21 @@ def agent1_check_velocity(youtube):
 
 def generate_assets(youtube, youtube_analytics, drive, client):
     today = datetime.now(timezone.utc).date().isoformat()
+
     age_gender = youtube_analytics.reports().query(
-    ids=f"channel=={CHANNEL_ID}", startDate="2020-01-01", endDate=today,
-    metrics="viewerPercentage", dimensions="ageGroup,gender", sort="-viewerPercentage"
-).execute().get("rows", [])
+        ids=f"channel=={CHANNEL_ID}", startDate="2020-01-01", endDate=today,
+        metrics="viewerPercentage", dimensions="ageGroup,gender", sort="-viewerPercentage"
+    ).execute().get("rows", [])
 
-country = youtube_analytics.reports().query(
-    ids=f"channel=={CHANNEL_ID}", startDate="2020-01-01", endDate=today,
-    metrics="viewerPercentage", dimensions="country", sort="-viewerPercentage"
-).execute().get("rows", [])
+    country = youtube_analytics.reports().query(
+        ids=f"channel=={CHANNEL_ID}", startDate="2020-01-01", endDate=today,
+        metrics="viewerPercentage", dimensions="country", sort="-viewerPercentage"
+    ).execute().get("rows", [])
 
-age_gender_summary = "\n".join([f"{r[0]} {r[1]}: {r[2]:.1f}%" for r in age_gender[:5]])
-country_summary = "\n".join([f"{r[0]}: {r[1]:.1f}%" for r in country[:5]])
-demo_summary = f"Age/Gender:\n{age_gender_summary}\n\nTop Countries:\n{country_summary}"
+    age_gender_summary = "\n".join([f"{r[0]} {r[1]}: {r[2]:.1f}%" for r in age_gender[:5]])
+    country_summary = "\n".join([f"{r[0]}: {r[1]:.1f}%" for r in country[:5]])
+    demo_summary = f"Age/Gender:\n{age_gender_summary}\n\nTop Countries:\n{country_summary}"
+
     # Prompt updated to specifically generate 145 seconds of content
     prompt = f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\nWrite a long 145-second YouTube Short script alternating between Ryan ({HOSTS['Ryan']['personality']}) and Katie ({HOSTS['Katie']['personality']}). Make fun of the absolute absurdity of the influencers involved. Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
     resp = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
