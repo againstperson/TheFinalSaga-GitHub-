@@ -91,7 +91,7 @@ def generate_assets(youtube, youtube_analytics, drive, client):
 
     country = youtube_analytics.reports().query(
         ids=f"channel=={CHANNEL_ID}", startDate="2020-01-01", endDate=today,
-        metrics="viewerPercentage", dimensions="country", sort="-viewerPercentage"
+        metrics="views", dimensions="country", sort="-views"
     ).execute().get("rows", [])
 
     age_gender_summary = "\n".join([f"{r[0]} {r[1]}: {r[2]:.1f}%" for r in age_gender[:5]])
