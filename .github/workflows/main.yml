@@ -40,6 +40,7 @@ jobs:
           DRIVE_FONT_FILE_ID: ${{ secrets.DRIVE_FONT_FILE_ID }}
           DRIVE_EXPORT_FOLDER_ID: ${{ secrets.DRIVE_EXPORT_FOLDER_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python main.py
       - name: Commit updated state
         if: always()
