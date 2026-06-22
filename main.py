@@ -127,6 +127,62 @@ def agent1_check_velocity(youtube):
         return True, video_title
 
     with open(STATE_PATH, "r") as f:
+        prev_data
+      refresh_token=YOUTUBE_REFRESH_TOKEN,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=YOUTUBE_CLIENT_ID,
+        client_secret=YOUTUBE_CLIENT_SECRET,
+    )
+
+
+def download_drive_folder(drive, folder_id, local_dir, exts):
+    """Download all files with matching extensions from a Drive folder."""
+    os.makedirs(local_dir, exist_ok=True)
+    query = f"'{folder_id}' in parents and trashed = false"
+    resp  = drive.files().list(q=query, fields="files(id, name)").execute()
+    for f in resp.get("files", []):
+        if f["name"].lower().endswith(tuple(exts)):
+            from googleapiclient.http import MediaIoBaseDownload
+            dest = os.path.join(local_dir, f["name"])
+            with open(dest, "wb") as out:
+                dl = MediaIoBaseDownload(out, drive.files().get_media(fileId=f["id"]))
+                done = False
+                while not done:
+                    _, done = dl.next_chunk()
+            log(f"Downloaded: {dest}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent 1 – view-velocity gatekeeper
+# ─────────────────────────────────────────────────────────────────────────────
+def agent1_check_velocity(youtube):
+    """Return (should_generate: bool, latest_video_title: str)."""
+    playlist_id = (
+        youtube.channels()
+        .list(part="contentDetails", id=CHANNEL_ID)
+        .execute()["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    )
+    latest = (
+        youtube.playlistItems()
+        .list(part="snippet", playlistId=playlist_id, maxResults=1)
+        .execute()["items"][0]
+    )
+    video_id    = latest["snippet"]["resourceId"]["videoId"]
+    video_title = latest["snippet"]["title"]
+    views_now   = int(
+        youtube.videos()
+        .list(part="statistics", id=video_id)
+        .execute()["items"][0]["statistics"]
+        .get("viewCount", 0)
+    )
+
+    if not os.path.exists(STATE_PATH):
+        os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+        with open(STATE_PATH, "w") as f:
+            json.dump({video_id: views_now}, f)
+        return True, video_title
+
+    with open(STATE_PATH, "r") as f:
         prev_data = json.load(f)
 
     last_views    = prev_data.get(video_id, 0)
