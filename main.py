@@ -182,15 +182,7 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         f"Age/Gender:\n{age_gender_summary}\n\nTop Countries:\n{country_summary}"
     )
 
-           from google.genai import types
-
-    grounding_config = types.GenerateContentConfig(
-        tools=[
-            types.Tool(
-                google_search=types.GoogleSearch()
-            )
-        ]
-    )
+               from google.genai import types
 
     prompt = (
         f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
@@ -201,12 +193,11 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
     )
 
-    log("Calling Gemini-2.5-Flash with Google Search grounding…")
+    log("Calling Gemini-2.5-Flash...")
     resp = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
-        config=grounding_config,
-  )
+    )
     raw_text = resp.text.strip()
 
     title_match = re.search(r"TITLE:\s*(.+?)\s*\n", raw_text)
