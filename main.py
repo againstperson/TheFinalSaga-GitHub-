@@ -182,20 +182,20 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         f"Age/Gender:\n{age_gender_summary}\n\nTop Countries:\n{country_summary}"
     )
 
-   from google.genai import types
+       from google.genai import types
 
-grounding_config = types.GenerateContentConfig(
-    tools=[{"google_search": {}}]
-)
+    grounding_config = types.GenerateContentConfig(
+        tools=[{"google_search": {}}]
+    )
 
-prompt = (
-    f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
-    f"Write a long 145-second YouTube Short script alternating between "
-    f"Ryan ({HOSTS['Ryan']['personality']}) and "
-    f"Katie ({HOSTS['Katie']['personality']}). "
-    f"Make fun of the absolute absurdity of the influencers involved. "
-    f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
-)
+    prompt = (
+        f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
+        f"Write a long 145-second YouTube Short script alternating between "
+        f"Ryan ({HOSTS['Ryan']['personality']}) and "
+        f"Katie ({HOSTS['Katie']['personality']}). "
+        f"Make fun of the absolute absurdity of the influencers involved. "
+        f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
+    )
 
 resp = genai_client.models.generate_content(
     model="gemini-2.5-flash",
