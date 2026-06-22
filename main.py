@@ -182,28 +182,26 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         f"Age/Gender:\n{age_gender_summary}\n\nTop Countries:\n{country_summary}"
     )
 
-    # ── Step 1 · Gemini script generation WITH live Google Search grounding ──
-    #
-    # WHY: Without grounding, Gemini invents drama from training data.
-    # With google_search grounding enabled it fetches real, current stories
-    # before composing the script — so every episode is factual and fresh.
-    #
-    # IMPORTANT: use `config=` (not `generation_config=`). The google-genai
-    # Python SDK (>= 0.8) uses `config` for GenerateContentConfig objects.
-    from google.genai import types
+   from google.genai import types
 
-    search_tool      = types.Tool(google_search=types.GoogleSearchTool())
-    grounding_config = types.GenerateContentConfig(tools=[search_tool])
+grounding_config = types.GenerateContentConfig(
+    tools=[{"google_search": {}}]
+)
 
-    prompt = (
-        f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
-        f"Write a long 145-second YouTube Short script alternating between "
-        f"Ryan ({HOSTS['Ryan']['personality']}) and "
-        f"Katie ({HOSTS['Katie']['personality']}). "
-        f"Make fun of the absolute absurdity of the influencers involved. "
-        f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
-    )
+prompt = (
+    f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
+    f"Write a long 145-second YouTube Short script alternating between "
+    f"Ryan ({HOSTS['Ryan']['personality']}) and "
+    f"Katie ({HOSTS['Katie']['personality']}). "
+    f"Make fun of the absolute absurdity of the influencers involved. "
+    f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
+)
 
+resp = genai_client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents=prompt,
+    config=grounding_config,
+)
     log("Calling Gemini-2.5-Flash with Google Search grounding…")
     resp     = client.models.generate_content(
         model="gemini-2.5-flash",
