@@ -432,7 +432,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-```
 DRIVE_CLIPS_FOLDER_ID  = os.environ["DRIVE_CLIPS_FOLDER_ID"]
 DRIVE_MUSIC_FOLDER_ID  = os.environ["DRIVE_MUSIC_FOLDER_ID"]
 DRIVE_FONT_FILE_ID     = os.environ["DRIVE_FONT_FILE_ID"]
