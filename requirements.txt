@@ -6,3 +6,4 @@ google-genai>=0.3.0
 moviepy==1.0.3
 pillow==9.5.0
 requests>=2.31.0
+groq
