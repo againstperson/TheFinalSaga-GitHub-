@@ -272,10 +272,12 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     whisper_resp = whisper_transcribe_with_retry(audio_path)
 
     if whisper_resp and getattr(whisper_resp, "words", None):
-        words = [
-            {"word": w.word.strip(), "start": w.start, "end": w.end}
-            for w in whisper_resp.words
-        ]
+        words = []
+        for w in whisper_resp.words:
+            if isinstance(w, dict):
+                words.append({"word": w["word"].strip(), "start": w["start"], "end": w["end"]})
+            else:
+                words.append({"word": w.word.strip(), "start": w.start, "end": w.end})
         log(f"Extracted {len(words)} word timestamps from Groq Whisper.")
     else:
         words = []
