@@ -1,0 +1,33 @@
+# Copy to config.yaml and fill API keys / queries as desired
+sources:
+  reddit:
+    enabled: true
+    subreddits:
+      - drama
+      - AmItheAsshole
+    limit: 5
+  youtube:
+    enabled: true
+    queries:
+      - drama
+    limit: 5
+    # If you have an API key, set youtube_api_key to use official API (optional)
+    youtube_api_key: ""
+  x:
+    enabled: true
+    queries:
+      - "from:elonmusk"  # example — can be hashtags or usernames or search queries
+    limit: 5
+    # nitter instance for RSS/HTML fallback (set to a working nitter instance)
+    nitter_instance: "https://nitter.net"
+  threads:
+    enabled: true
+    queries:
+      - "username:example"  # can be profile or search term (best-effort)
+    limit: 5
+
+output:
+  script_file: "drama_script.txt"
+  tts: true
+  tts_rate_multiplier: 1.35
+  voice_name: ""  # empty = default voice
