@@ -21,6 +21,7 @@ import re
 import json
 import struct
 import time
+import random
 import requests
 from datetime import datetime, timezone
 
@@ -62,6 +63,56 @@ def notify_discord(message):
             )
         except Exception as exc:
             log(f"Discord notify failed: {exc}")
+
+
+# Retry decorator for transient GenAI / network errors
+def retry_on_transient(max_attempts=6, initial_backoff=1.0, factor=2.0):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            backoff = initial_backoff
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as exc:
+                    # Detect Google genai ServerError if available
+                    is_transient = False
+                    try:
+                        from google.genai.errors import ServerError, RateLimitError
+                        if isinstance(exc, (ServerError, RateLimitError)):
+                            is_transient = True
+                    except Exception:
+                        # google.genai not importable or different error - fall back to message checks
+                        pass
+
+                    # Common HTTP transient statuses on requests
+                    try:
+                        import requests as _req
+                        if isinstance(exc, (_req.exceptions.ConnectionError, _req.exceptions.Timeout)):
+                            is_transient = True
+                    except Exception:
+                        pass
+
+                    # Heuristic: message contains transient hints
+                    msg = str(exc).lower()
+                    if any(k in msg for k in ("503", "unavailable", "rate limit", "high demand", "try again later", "429")):
+                        is_transient = True
+
+                    if not is_transient or attempt == max_attempts:
+                        raise
+
+                    wait = backoff + random.random() * 0.2
+                    log(f"Transient error on attempt {attempt}/{max_attempts}: {exc} — retrying in {wait:.1f}s...")
+                    time.sleep(wait)
+                    backoff *= factor
+        return wrapper
+    return decorator
+
+
+# Wrap Google GenAI model.generate-like calls in a helper so we can retry safely
+@retry_on_transient(max_attempts=6, initial_backoff=1.0, factor=2.0)
+def genai_generate(client, model, contents, **kwargs):
+    # client is expected to be google.genai.Client
+    return client.models.generate_content(model=model, contents=contents, **kwargs)
 
 
 def build_oauth_credentials():
@@ -185,11 +236,13 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     )
 
     log("Calling Gemini-2.5-Flash...")
-    resp = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
-    raw_text = getattr(resp, "text", str(resp)).strip()
+    try:
+        resp = genai_generate(client, model="gemini-2.5-flash", contents=prompt)
+        raw_text = getattr(resp, "text", str(resp)).strip()
+    except Exception as exc:
+        log(f"GenAI script generation failed after retries: {exc}")
+        notify_discord(f"⚠️ Generation skipped: GenAI unavailable or rate-limited. {exc}")
+        return
 
     title_match = re.search(r"TITLE:\s*(.+?)\s*\n", raw_text)
     title  = title_match.group(1) if title_match else "Trending Drama"
@@ -224,12 +277,13 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     )
 
     log("Generating TTS audio…")
-    audio_resp = client.models.generate_content(
-        model="gemini-3.1-flash-tts-preview",
-        contents=script,
-        config=tts_config,
-    )
-    raw_pcm = audio_resp.candidates[0].content.parts[0].inline_data.data
+    try:
+        audio_resp = genai_generate(client, model="gemini-3.1-flash-tts-preview", contents=script, config=tts_config)
+        raw_pcm = audio_resp.candidates[0].content.parts[0].inline_data.data
+    except Exception as exc:
+        log(f"GenAI TTS failed after retries: {exc}")
+        notify_discord(f"⚠️ TTS skipped: GenAI unavailable or rate-limited. {exc}")
+        return
 
     # Write 24 kHz mono 16-bit PCM as a standard WAV
     wav_header = struct.pack(
@@ -357,6 +411,7 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         f"🚨 **New Short Ready!**\n"
         f"**Title:** {title}\n"
         f"**Drive:** {drive_link}\n\n"
+
         f"_Run the `publish` phase to push live to YouTube._"
     )
 
