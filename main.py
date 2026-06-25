@@ -6,12 +6,12 @@ Runs entirely on GitHub Actions (cloud-only, no local execution).
 Pipeline:
   1. Check view-velocity of latest video; skip if still growing fast.
   2. Pull audience analytics from YouTube Analytics API.
-  3. Generate a 145-second drama script with Gemini-2.5-Flash
+  3. Generate a 60-second drama script with Gemini-2.5-Flash
      *** using Tavely API for live web search (no hallucinated drama). ***
-  4. Convert script to stereo 24kHz WAV with Gemini TTS (multi-speaker).
+  4. Convert script to stereo 24kHz WAV with Gemini TTS (multi-speaker, punchy fast-paced).
   5. Extract word-level timestamps from the rendered audio via
      *** Groq Whisper large-v3-turbo (replaces text-guessed timestamps.json). ***
-  6. Build the Short (background clip + karaoke subtitles) with MoviePy.
+  6. Build the Short (random background clip + karaoke subtitles) with MoviePy.
   7. Upload MP4 to Google Drive and notify Discord.
   8. (Separate publish phase) Push to YouTube.
 """
@@ -293,17 +293,19 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         drama_list = "\n".join([f"- {d['title']}: {d['snippet'][:100]}" for d in tavely_drama])
         drama_context = f"\n\nREAL TRENDING DRAMA (from Tavely API):\n{drama_list}\n\nBase your script on these REAL events, not fiction."
     
+    # ==================== ENHANCEMENT 1: 60-SECOND SCRIPT ====================
     prompt = (
         f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
-        f"Write a long 145-second YouTube Short script alternating between "
-        f"Ryan ({HOSTS['Ryan']['personality']}) and "
+        f"Write a STRICTLY 60-SECOND YouTube Short script (approximately 150-170 words max) "
+        f"alternating between Ryan ({HOSTS['Ryan']['personality']}) and "
         f"Katie ({HOSTS['Katie']['personality']}). "
+        f"Use punchy, fast-paced dialogue with rapid back-and-forth exchanges. "
         f"Make fun of the absolute absurdity of the influencers involved. "
         f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
         f"{drama_context}"
     )
 
-    log("Calling Gemini-2.5-Flash with Tavely-sourced drama context...")
+    log("Calling Gemini-2.5-Flash with Tavely-sourced drama context (60-second format)...")
     try:
         resp = genai_generate(client, model="gemini-2.5-flash", contents=prompt)
         raw_text = getattr(resp, "text", str(resp)).strip()
@@ -315,9 +317,10 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     title_match = re.search(r"TITLE:\s*(.+?)\s*\n", raw_text)
     title  = title_match.group(1) if title_match else "Trending Drama"
     script = raw_text.split("---")[-1].strip()
-    log(f"Script ready: {title}")
+    log(f"Script ready (60-second): {title}")
 
-    # Step 2 · TTS via Gemini multi-speaker
+    # ==================== ENHANCEMENT 2: DUAL VOICES WITH PUNCHY DELIVERY ====================
+    # Step 2 · TTS via Gemini multi-speaker with punchy fast-paced config
     tts_config = types.GenerateContentConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
@@ -340,11 +343,13 @@ def generate_assets(youtube, youtube_analytics, drive, client):
                         ),
                     ),
                 ]
-            )
+            ),
+            # Punchy, fast-paced delivery parameters
+            speaking_rate=1.3,  # 30% faster than normal speech
         ),
     )
 
-    log("Generating TTS audio…")
+    log("Generating TTS audio with dual voices (punchy, fast-paced)…")
     try:
         audio_resp = genai_generate(client, model="gemini-3.1-flash-tts-preview", contents=script, config=tts_config)
         raw_pcm = audio_resp.candidates[0].content.parts[0].inline_data.data
@@ -424,25 +429,57 @@ def generate_assets(youtube, youtube_analytics, drive, client):
             out.write(drive.files().get_media(fileId=font_files[0]["id"]).execute())
         log("Font downloaded.")
 
+    # ==================== ENHANCEMENT 3: RANDOMIZED BACKGROUND CLIPS ====================
     # Step 5 · Build video with MoviePy
     from PIL import Image
     if not hasattr(Image, "ANTIALIAS"):
         Image.ANTIALIAS = Image.Resampling.LANCZOS
 
-    from moviepy.editor import AudioFileClip, VideoFileClip, TextClip, CompositeVideoClip
+    from moviepy.editor import AudioFileClip, VideoFileClip, TextClip, CompositeVideoClip, concatenate_videoclips
     import moviepy.video.fx.all as vfx
 
     voice  = AudioFileClip(audio_path)
-    bg_raw = (
-        VideoFileClip(os.path.join(clips_dir, os.listdir(clips_dir)[0]))
-        .without_audio()
-        .fx(vfx.speedx, 1.5)
-    )
-
-    if bg_raw.duration < voice.duration:
-        bg_clip = bg_raw.fx(vfx.loop, duration=voice.duration)
+    
+    # Get all available clips and shuffle them for variety
+    available_clips = [f for f in os.listdir(clips_dir) if f.lower().endswith(('.mp4', '.mov'))]
+    if not available_clips:
+        log("❌ No background clips found in clips folder!")
+        notify_discord("❌ No background clips available for video generation.")
+        return
+    
+    log(f"Found {len(available_clips)} background clips. Shuffling for variety...")
+    random.shuffle(available_clips)
+    
+    # Build background by concatenating randomized clips to match voice duration
+    bg_segments = []
+    total_bg_duration = 0
+    clip_index = 0
+    
+    while total_bg_duration < voice.duration:
+        clip_file = available_clips[clip_index % len(available_clips)]
+        try:
+            clip = (
+                VideoFileClip(os.path.join(clips_dir, clip_file))
+                .without_audio()
+                .fx(vfx.speedx, 1.5)
+            )
+            bg_segments.append(clip)
+            total_bg_duration += clip.duration
+            clip_index += 1
+            log(f"Added clip: {clip_file} (total duration: {total_bg_duration:.1f}s)")
+        except Exception as exc:
+            log(f"Failed to load clip {clip_file}: {exc}")
+            clip_index += 1
+            continue
+    
+    # Concatenate all segments and trim to exact voice duration
+    if bg_segments:
+        bg_clip = concatenate_videoclips(bg_segments).subclip(0, voice.duration)
+        log(f"Background video assembled and trimmed to {voice.duration:.1f}s")
     else:
-        bg_clip = bg_raw.subclip(0, voice.duration)
+        log("❌ Failed to assemble background video!")
+        notify_discord("❌ Failed to assemble background video from clips.")
+        return
 
     layers = [bg_clip]
     for w in words:
@@ -478,6 +515,7 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     notify_discord(
         f"🚨 **New Short Ready!**\n"
         f"**Title:** {title}\n"
+        f"**Duration:** 60 seconds (fast-paced, dual voices)\n"
         f"**Drive:** {drive_link}\n\n"
 
         f"_Run the `publish` phase to push live to YouTube._"
