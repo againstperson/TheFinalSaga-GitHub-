@@ -41,6 +41,7 @@ jobs:
           DRIVE_EXPORT_FOLDER_ID: ${{ secrets.DRIVE_EXPORT_FOLDER_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TAVELY_API_KEY: ${{ secrets.TAVELY_API_KEY }}
         run: python main.py
       - name: Commit updated state
         if: always()
