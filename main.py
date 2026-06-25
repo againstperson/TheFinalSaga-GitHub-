@@ -43,6 +43,16 @@ DRIVE_EXPORT_FOLDER_ID = os.environ["DRIVE_EXPORT_FOLDER_ID"]
 ACTION     = os.environ.get("PIPELINE_ACTION", "generate")
 STATE_PATH = "state/last_check.json"
 
+# Extended voice library for multiple speaker options
+AVAILABLE_VOICES = {
+    "Orus": "Orus",
+    "Fenrir": "Fenrir",
+    "Puck": "Puck",
+    "Charon": "Charon",
+    "Ember": "Ember",
+    "Breeze": "Breeze",
+}
+
 HOSTS = {
     "Ryan":  {"voice": "Orus",   "personality": "mocking, joking, edgy, and completely unimpressed by celebrity privilege"},
     "Katie": {"voice": "Fenrir", "personality": "excited, high-energy, and overly understanding"},
@@ -320,7 +330,8 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     log(f"Script ready (60-second): {title}")
 
     # ==================== ENHANCEMENT 2: DUAL VOICES WITH PUNCHY DELIVERY ====================
-    # Step 2 · TTS via Gemini multi-speaker with punchy fast-paced config
+    # Step 2 · TTS via Gemini multi-speaker (removed unsupported speaking_rate parameter)
+    # The Gemini TTS API handles pacing through model inference; speaking_rate is not a supported parameter
     tts_config = types.GenerateContentConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
@@ -344,8 +355,6 @@ def generate_assets(youtube, youtube_analytics, drive, client):
                     ),
                 ]
             ),
-            # Punchy, fast-paced delivery parameters
-            speaking_rate=1.3,  # 30% faster than normal speech
         ),
     )
 
