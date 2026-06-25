@@ -110,21 +110,25 @@ def fetch_trending_drama_tavely(demo_summary):
         
         search_results = response.json()
         
-        # Extract real drama topics from search results
+        # Extract real drama topics from search results, filtering for 100k+ likes
         drama_items = []
         if "results" in search_results:
             for result in search_results["results"][:5]:
-                drama_items.append({
-                    "title": result.get("title", ""),
-                    "snippet": result.get("snippet", ""),
-                    "url": result.get("url", "")
-                })
+                # Only select topics with more than 100,000 likes on any platform
+                engagement = result.get("engagement", 0)
+                if engagement > 100000:
+                    drama_items.append({
+                        "title": result.get("title", ""),
+                        "snippet": result.get("snippet", ""),
+                        "url": result.get("url", ""),
+                        "engagement": engagement
+                    })
         
         if drama_items:
-            log(f"✓ Found {len(drama_items)} trending drama items via Tavely")
+            log(f"✓ Found {len(drama_items)} trending drama items (100k+ likes) via Tavely")
             return drama_items
         else:
-            log("No drama items found from Tavely; fallback to generic prompt")
+            log("No drama items with 100k+ likes found from Tavely; fallback to generic prompt")
             return None
             
     except requests.exceptions.RequestException as exc:
@@ -300,8 +304,8 @@ def generate_assets(youtube, youtube_analytics, drive, client):
     drama_context = ""
     tavely_drama = fetch_trending_drama_tavely(demo_summary)
     if tavely_drama:
-        drama_list = "\n".join([f"- {d['title']}: {d['snippet'][:100]}" for d in tavely_drama])
-        drama_context = f"\n\nREAL TRENDING DRAMA (from Tavely API):\n{drama_list}\n\nBase your script on these REAL events, not fiction."
+        drama_list = "\n".join([f"- {d['title']}: {d['snippet'][:100]} ({d['engagement']:,} likes)" for d in tavely_drama])
+        drama_context = f"\n\nREAL TRENDING DRAMA (100k+ likes, from Tavely API):\n{drama_list}\n\nBase your script on these REAL events, not fiction."
     
     # ==================== ENHANCEMENT 1: 60-SECOND SCRIPT ====================
     prompt = (
