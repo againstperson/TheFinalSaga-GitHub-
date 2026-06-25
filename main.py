@@ -7,7 +7,7 @@ Pipeline:
   1. Check view-velocity of latest video; skip if still growing fast.
   2. Pull audience analytics from YouTube Analytics API.
   3. Generate a 145-second drama script with Gemini-2.5-Flash
-     *** using live Google Search grounding (no hallucinated drama). ***
+     *** using Tavely API for live web search (no hallucinated drama). ***
   4. Convert script to stereo 24kHz WAV with Gemini TTS (multi-speaker).
   5. Extract word-level timestamps from the rendered audio via
      *** Groq Whisper large-v3-turbo (replaces text-guessed timestamps.json). ***
@@ -32,6 +32,7 @@ YOUTUBE_REFRESH_TOKEN  = os.environ["YOUTUBE_REFRESH_TOKEN"]
 CHANNEL_ID             = os.environ.get("YOUTUBE_CHANNEL_ID", "UCKMy8Xqk086_6Kwg5uZoxGw")
 GOOGLE_AI_STUDIO_API_KEY = os.environ["GOOGLE_AI_STUDIO_API_KEY"]
 GROQ_API_KEY           = os.environ["GROQ_API_KEY"]
+TAVELY_API_KEY         = os.environ.get("TAVELY_API_KEY", "")
 DISCORD_WEBHOOK_URL    = os.environ.get("DISCORD_WEBHOOK_URL")
 
 DRIVE_CLIPS_FOLDER_ID  = os.environ["DRIVE_CLIPS_FOLDER_ID"]
@@ -63,6 +64,65 @@ def notify_discord(message):
             )
         except Exception as exc:
             log(f"Discord notify failed: {exc}")
+
+
+# Tavely API integration for real-time search
+def fetch_trending_drama_tavely(demo_summary):
+    """Fetch real trending drama using Tavely API instead of Gemini search."""
+    if not TAVELY_API_KEY:
+        log("⚠️  TAVELY_API_KEY not set; skipping Tavely search")
+        return None
+    
+    try:
+        # Search for trending celebrity drama
+        search_query = "trending celebrity drama influencer news 2024"
+        
+        headers = {
+            "Authorization": f"Bearer {TAVELY_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "query": search_query,
+            "max_results": 5,
+            "include_answer": True,
+            "search_depth": "advanced"
+        }
+        
+        log(f"Calling Tavely API for trending drama search...")
+        response = requests.post(
+            "https://api.tavily.com/search",
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        search_results = response.json()
+        
+        # Extract real drama topics from search results
+        drama_items = []
+        if "results" in search_results:
+            for result in search_results["results"][:5]:
+                drama_items.append({
+                    "title": result.get("title", ""),
+                    "snippet": result.get("snippet", ""),
+                    "url": result.get("url", "")
+                })
+        
+        if drama_items:
+            log(f"✓ Found {len(drama_items)} trending drama items via Tavely")
+            return drama_items
+        else:
+            log("No drama items found from Tavely; fallback to generic prompt")
+            return None
+            
+    except requests.exceptions.RequestException as exc:
+        log(f"Tavely API call failed: {exc}")
+        return None
+    except Exception as exc:
+        log(f"Error processing Tavely response: {exc}")
+        return None
 
 
 # Retry decorator for transient GenAI / network errors
@@ -226,6 +286,13 @@ def generate_assets(youtube, youtube_analytics, drive, client):
 
     from google.genai import types
 
+    # Fetch real trending drama from Tavely API
+    drama_context = ""
+    tavely_drama = fetch_trending_drama_tavely(demo_summary)
+    if tavely_drama:
+        drama_list = "\n".join([f"- {d['title']}: {d['snippet'][:100]}" for d in tavely_drama])
+        drama_context = f"\n\nREAL TRENDING DRAMA (from Tavely API):\n{drama_list}\n\nBase your script on these REAL events, not fiction."
+    
     prompt = (
         f"Find trending internet or celebrity drama matching this audience:\n{demo_summary}\n"
         f"Write a long 145-second YouTube Short script alternating between "
@@ -233,9 +300,10 @@ def generate_assets(youtube, youtube_analytics, drive, client):
         f"Katie ({HOSTS['Katie']['personality']}). "
         f"Make fun of the absolute absurdity of the influencers involved. "
         f"Format exactly as TITLE: <title> \\n --- \\n Dialogue starting with names."
+        f"{drama_context}"
     )
 
-    log("Calling Gemini-2.5-Flash...")
+    log("Calling Gemini-2.5-Flash with Tavely-sourced drama context...")
     try:
         resp = genai_generate(client, model="gemini-2.5-flash", contents=prompt)
         raw_text = getattr(resp, "text", str(resp)).strip()
